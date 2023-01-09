@@ -29,6 +29,9 @@ from tkinter import ttk
 # カーソル位置を確認しながら行うボックス操作(画像認識使用)
 class BoxOperationMethods(ImageProcPythonCommand):
     NAME = 'SV_BOX操作(画像認識)'
+    PRESS_BUTTON_DURATION=0.1
+    PRESS_BUTTON_WAIT=0.5
+
 
     def __init__(self, cam, gui=None):
         super().__init__(cam)
@@ -37,7 +40,47 @@ class BoxOperationMethods(ImageProcPythonCommand):
 
 
     def do(self):
-        self.calcLocationTemplateWithMask(check_interval=0.6)
+        self.testPerformance2()
+        
+
+    # カーソルが正しく認識できているかテスト
+    # できていないなら画像を差し替える
+    def testPerformance1(self):
+        cnt=0
+        while(cnt<10):
+            self.calcCoordinatesInBox()
+            time.sleep(1)
+            cnt+=1
+
+
+    # カーソルが操作ができているかテスト
+    # testPerformance1ができているなら必要ない？
+    def testPerformance2(self):
+        self.setPositionInBox((0,0))
+        print("移動完了")
+        time.sleep(2)
+        self.setPositionInBox((1,1))
+        print("移動完了")
+        time.sleep(2)
+        self.setPositionInBox((2,2))
+        print("移動完了")
+        time.sleep(2)
+        self.setPositionInBox((6,0))
+        print("移動完了")
+        time.sleep(2)
+        self.setPositionInBox((3,3))
+        print("移動完了")
+        time.sleep(2)
+        self.setPositionInBox((6,1))
+        print("移動完了")
+        time.sleep(2)
+        self.setPositionInBox((4,5))
+        print("移動完了")
+        time.sleep(2)
+        self.setPositionInBox((6,2))
+        print("移動完了")
+        time.sleep(2)
+
 
 
     # mask付きテンプレートマッチング
@@ -94,7 +137,7 @@ class BoxOperationMethods(ImageProcPythonCommand):
             [[188,547], [388,575], [662,575], [INF,INF], [INF,INF], [INF,INF], [INF,INF]]
         ])
 
-        image_dir=r"SV/SV_BoxOperationMethods_Images/"
+        image_dir=r"./Template/SV/SV_BoxOperationMethods_Images/"
         template_path=image_dir+r"cursor.png"
         mask_path=image_dir+r"cursor_mask.png"
         match_result=self.isContainTemplateWithMask(template_path, mask_path, use_gray=False)
@@ -111,22 +154,62 @@ class BoxOperationMethods(ImageProcPythonCommand):
         return res
 
 
+    # 指定した分だけカーソルを進める
+    def moveCursor(self, diff_y, diff_x):
+        while(not 0==diff_y):
+            if(0<diff_y):
+                self.press(Hat.BTM,self.PRESS_BUTTON_DURATION,self.PRESS_BUTTON_WAIT)
+                diff_y-=1
+            else:
+                self.press(Hat.TOP,self.PRESS_BUTTON_DURATION,self.PRESS_BUTTON_WAIT)
+                diff_y+=1
+
+        while(not 0==diff_x):
+            if(0<diff_x):
+                self.press(Hat.RIGHT,self.PRESS_BUTTON_DURATION,self.PRESS_BUTTON_WAIT)
+                diff_x-=1
+            else:
+                self.press(Hat.LEFT,self.PRESS_BUTTON_DURATION,self.PRESS_BUTTON_WAIT)
+                diff_x+=1
+        return
+
+
     # boxを開いた状態で使用
     # box内の指定座標へ移動する
-    def setPositionInBox(self, goal_coordinates):
+    def setPositionInBox(self, target_coordinates):
+        print("次の座標へ移動します:"+str(target_coordinates))
+        cnt=0
+        while(True):
+            if(10<=cnt):
+                print("[setPositionInBox] cursol is not found.")
+                return False
+
+            res_coordinates_in_box=self.calcCoordinatesInBox()
+            if(res_coordinates_in_box[0]):
+               break 
+            cnt+=1
+
+        nowPosition=res_coordinates_in_box[1]
+        while(nowPosition!=target_coordinates):
+            if(0==target_coordinates[0]):
+                self.moveCursor(0, 1-nowPosition[1]) 
+                self.moveCursor(target_coordinates[0]-nowPosition[0], 0) 
+            else:
+                self.moveCursor(target_coordinates[0]-nowPosition[0], target_coordinates[1]-nowPosition[1]) 
+            nowPosition=self.calcCoordinatesInBox()[1]
         return
 
 
     # box一覧を開いた状態で使用
     # 現在選択しているboxを計算する
     # 返り値は0-34の整数値(0:手持ち, 1-32:各ボックス, 33:検索の横にあるボックス, 34:検索)
-    def calcCoordinatesSwitchBox(self, check_interval=0.2, check_duration=2):
+    def calcCoordinatesSwitchBox(self):
         return
 
 
     # boxを開いた状態で使用
     # 指定のboxへ移動する
-    def setBox(goalBoxIndex):
+    def setBox(self, goalBoxIndex):
         return
 
 
