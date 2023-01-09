@@ -37,6 +37,12 @@ class BoxOperationMethods(ImageProcPythonCommand):
         super().__init__(cam)
         self.cam = cam
         self.gui = gui
+        # loggerを有効にする
+        self._logger = getLogger(__name__)
+        self._logger.addHandler(NullHandler())
+        self._logger.setLevel(DEBUG)
+        self._logger.propagate = True
+
 
 
     def do(self):
@@ -56,32 +62,13 @@ class BoxOperationMethods(ImageProcPythonCommand):
     # カーソルが操作ができているかテスト
     # testPerformance1ができているなら必要ない？
     def testPerformance2(self):
-        self.setPositionInBox((0,0))
-        print("移動完了")
-        time.sleep(2)
-        self.setPositionInBox((1,1))
-        print("移動完了")
-        time.sleep(2)
-        self.setPositionInBox((2,2))
-        print("移動完了")
-        time.sleep(2)
-        self.setPositionInBox((6,0))
-        print("移動完了")
-        time.sleep(2)
-        self.setPositionInBox((3,3))
-        print("移動完了")
-        time.sleep(2)
-        self.setPositionInBox((6,1))
-        print("移動完了")
-        time.sleep(2)
-        self.setPositionInBox((4,5))
-        print("移動完了")
-        time.sleep(2)
-        self.setPositionInBox((6,2))
-        print("移動完了")
-        time.sleep(2)
-
-
+        testlist=[(0,0), (1,1), (2,2), (6,0), (3,3), (6,1), (4,5), (6,2)]
+        for tl in testlist:
+            print("次の座標へ移動します:"+str(tl))
+            self.setPositionInBox((tl))
+            print("移動完了")
+            time.sleep(3)
+        
 
     # mask付きテンプレートマッチング
     # テンプレート画像の他にマスク画像が必要になるが、透過処理が可能
@@ -143,13 +130,13 @@ class BoxOperationMethods(ImageProcPythonCommand):
         match_result=self.isContainTemplateWithMask(template_path, mask_path, use_gray=False)
 
         if(match_result[0]):
-            print("cursor is detected.")
+            self._logger.debug("cursor is detected.")
             distances=np.abs(PIXS_IN_BOX-match_result[1]).sum(axis=2)
             detect_index=np.unravel_index(distances.argmin(), distances.shape)
-            print("pixs:" + str(match_result[1]) + ", coordinates in box:" + str(detect_index))
+            self._logger.debug("pixs:" + str(match_result[1]) + ", coordinates in box:" + str(detect_index))
             res=(True,detect_index)
         else:
-            print("cursor is not found.")
+            self._logger.debug("cursor is not found.")
             res=(False,(-1,-1))
         return res
 
@@ -177,11 +164,10 @@ class BoxOperationMethods(ImageProcPythonCommand):
     # boxを開いた状態で使用
     # box内の指定座標へ移動する
     def setPositionInBox(self, target_coordinates):
-        print("次の座標へ移動します:"+str(target_coordinates))
         cnt=0
         while(True):
             if(10<=cnt):
-                print("[setPositionInBox] cursol is not found.")
+                self._logger.debug("cursol is not found.")
                 return False
 
             res_coordinates_in_box=self.calcCoordinatesInBox()
