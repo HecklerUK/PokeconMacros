@@ -46,14 +46,14 @@ class BoxOperationMethods(ImageProcPythonCommand):
 
 
     def do(self):
-        self.testPerformance2()
+        self.testPerformance3()
         
 
-    # カーソルが正しく認識できているかテスト
+    # boxを開いた画面でカーソル座標が正しく計算できているかテスト
     # できていないなら画像を差し替える
     def testPerformance1(self):
         cnt=0
-        while(cnt<10):
+        while(cnt<20):
             self.calcCoordinatesInBox()
             time.sleep(1)
             cnt+=1
@@ -69,6 +69,16 @@ class BoxOperationMethods(ImageProcPythonCommand):
             print("移動完了")
             time.sleep(3)
         
+
+    # box一覧画面でカーソル座標が正しく計算できているかテスト
+    # できていないなら画像を差し替える
+    def testPerformance3(self):
+        cnt=0
+        while(cnt<20):
+            self.calcCoordinatesSwitchBox()
+            time.sleep(1)
+            cnt+=1
+
 
     # mask付きテンプレートマッチング
     # テンプレート画像の他にマスク画像が必要になるが、透過処理が可能
@@ -127,7 +137,14 @@ class BoxOperationMethods(ImageProcPythonCommand):
         image_dir=r"./Template/SV/SV_BoxOperationMethods_Images/"
         template_path=image_dir+r"cursor.png"
         mask_path=image_dir+r"cursor_mask.png"
-        match_result=self.isContainTemplateWithMask(template_path, mask_path, use_gray=False)
+
+        # 操作時に一瞬カーソルが消えることがあるため、何度かチェックする
+        cnt=0
+        while(cnt<10):
+            match_result=self.isContainTemplateWithMask(template_path, mask_path, use_gray=False)
+            if(match_result[0]):
+                break
+            cnt+=1
 
         if(match_result[0]):
             self._logger.debug("cursor is detected.")
@@ -164,6 +181,9 @@ class BoxOperationMethods(ImageProcPythonCommand):
     # boxを開いた状態で使用
     # box内の指定座標へ移動する
     def setPositionInBox(self, target_coordinates):
+        # boxを開いた状態か確認
+
+        # 初期座標計算
         cnt=0
         while(True):
             if(10<=cnt):
@@ -187,10 +207,44 @@ class BoxOperationMethods(ImageProcPythonCommand):
 
 
     # box一覧を開いた状態で使用
-    # 現在選択しているboxを計算する
-    # 返り値は0-34の整数値(0:手持ち, 1-32:各ボックス, 33:検索の横にあるボックス, 34:検索)
+    # box一覧内の現在座標(y,x)を計算する
+    # 座標((0,0):手持ち, (1-4,0-7):各ボックス, (5,0):いちらん, (5,1):検索)
     def calcCoordinatesSwitchBox(self):
-        return
+        INF=10007
+        PIXS_SWITCH_BOX = np.array([
+            [[889,55], [INF,INF], [INF,INF], [INF,INF], [INF,INF], [INF,INF], [INF,INF], [INF,INF]],
+            [[618,130], [698,130], [778,130], [858,130], [938,130], [1018,130], [1098,130], [1178,130]],
+            [[618,210], [698,210], [778,210], [858,210], [938,210], [1018,210], [1098,210], [1178,210]],
+            [[618,290], [698,290], [778,290], [858,290], [938,290], [1018,290], [1098,290], [1178,290]],
+            [[618,370], [698,370], [778,370], [858,370], [938,370], [1018,370], [1098,370], [1178,370]],
+            [[760,570], [1033,570], [INF,INF], [INF,INF], [INF,INF], [INF,INF], [INF,INF], [INF,INF]]
+        ])
+
+        image_dir=r"./Template/SV/SV_BoxOperationMethods_Images/"
+        template_path=image_dir+r"cursor.png"
+        mask_path=image_dir+r"cursor_mask.png"
+
+        # 操作時に一瞬カーソルが消えることがあるため、何度かチェックする
+        cnt=0
+        while(cnt<10):
+            match_result=self.isContainTemplateWithMask(template_path, mask_path, use_gray=False)
+            if(match_result[0]):
+                break
+            cnt+=1
+
+        if(match_result[0]):
+            self._logger.debug("cursor is detected.")
+            distances=np.abs(PIXS_SWITCH_BOX-match_result[1]).sum(axis=2)
+            detect_index=np.unravel_index(distances.argmin(), distances.shape)
+            #self._logger.debug("pixs:" + str(match_result[1]) + ", coordinates in switch box:" + str(detect_index))
+            print("pixs:" + str(match_result[1]) + ", coordinates in switch box:" + str(detect_index))
+            res=(True,detect_index)
+        else:
+            self._logger.debug("cursor is not found.")
+            res=(False,(-1,-1))
+        return res
+
+
 
 
     # boxを開いた状態で使用
