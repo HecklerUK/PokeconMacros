@@ -31,6 +31,7 @@ class BoxOperationMethods(ImageProcPythonCommand):
     NAME = 'SV_BOX操作(画像認識)'
     PRESS_BUTTON_DURATION=0.1
     PRESS_BUTTON_WAIT=0.5
+    THRESHOLD_TEMPLATE_MATCHING=0.9
 
 
     def __init__(self, cam, gui=None):
@@ -46,11 +47,12 @@ class BoxOperationMethods(ImageProcPythonCommand):
 
 
     def do(self):
-        self.testPerformance3()
+        self.testPerformance2()
         
 
-    # boxを開いた画面でカーソル座標が正しく計算できているかテスト
-    # できていないなら画像を差し替える
+    # boxを開いた画面で使用
+    # 現在のカーソル座標を20回出力
+    # Controllerボタンで位置を動かして動作確認
     def testPerformance1(self):
         cnt=0
         while(cnt<20):
@@ -78,6 +80,35 @@ class BoxOperationMethods(ImageProcPythonCommand):
             self.calcCoordinatesSwitchBox()
             time.sleep(1)
             cnt+=1
+    
+    def testPerformance4():
+        cnt=0
+        while(cnt<20):
+            # boxを開いた状態か確認
+            image_dir=r"./Template/SV/SV_BoxOperationMethods_Images/"
+            template_is_box_path=image_dir+r"box_ichiran_normal.png"
+            mask_is_box_path=image_dir+r"box_ichiran_normal_mask.png"
+            template_is_box_selected_path=image_dir+r"box_ichiran_selected.png"
+            res=self.isContainTemplateWithMask(template_is_box_path, mask_is_box_path, use_gray=False)
+            if(not res[0]):
+                print("boxが開かれていません")
+            else:
+                print("boxが開かれています")
+
+            # box一覧を開いた状態か確認
+            image_dir=r"./Template/SV/SV_BoxOperationMethods_Images/"
+            template_is_switch_box_path=image_dir+r"switch_box_temochi.png"
+            mask_is_switch_box_path=image_dir+r"switch_box_temochi_mask.png"
+            res=self.isContainTemplateWithMask(template_is_switch_box_path, mask_is_switch_box_path, use_gray=False)
+            if(not res[0]):
+                print("box一覧が開かれていません")
+            else:
+                print("box一覧が開かれています")
+
+            self.calcCoordinatesSwitchBox()
+            time.sleep(2)
+            cnt+=1
+ 
 
 
     # mask付きテンプレートマッチング
@@ -104,11 +135,12 @@ class BoxOperationMethods(ImageProcPythonCommand):
         method = cv2.TM_CCORR_NORMED
         res = cv2.matchTemplate(src, template, method, None, mask)
         _, max_val, _, max_loc = cv2.minMaxLoc(res)
+        self._logger.debug(max_val)
 
         if show_value:
         	print(template_path + ' ZNCC value: ' + str(max_val))
 
-        if max_val > threshold:
+        if(max_val > threshold):
             if use_gray:
                 src = cv2.cvtColor(src, cv2.COLOR_GRAY2BGR)
             top_left = max_loc
@@ -175,35 +207,49 @@ class BoxOperationMethods(ImageProcPythonCommand):
             else:
                 self.press(Hat.LEFT,self.PRESS_BUTTON_DURATION,self.PRESS_BUTTON_WAIT)
                 diff_x+=1
-        return
+        return 0
 
 
     # boxを開いた状態で使用
     # box内の指定座標へ移動する
+    # 座標((0,0):ボックス名, (1-6,0):手持ち, (1-5,1-6):ボックス, (6,1):いちらん, (6,2):検索)
     def setPositionInBox(self, target_coordinates):
         # boxを開いた状態か確認
+        image_dir=r"./Template/SV/SV_BoxOperationMethods_Images/"
+        template_is_box_path=image_dir+r"box_ichiran_normal.png"
+        mask_is_box_path=image_dir+r"box_ichiran_normal_mask.png"
+        template_is_box_selected_path=image_dir+r"box_ichiran_selected.png"
+        res=self.isContainTemplateWithMask(template_is_box_path, mask_is_box_path, use_gray=False)
+        if(not res[0]):
+            if(not self.isContainTemplate(template_is_box_selected_path, THRESHOLD_TEMPLATE_MATCHING)):
+                print("boxが開かれていません")
+                return 1
 
         # 初期座標計算
         cnt=0
         while(True):
             if(10<=cnt):
                 self._logger.debug("cursol is not found.")
-                return False
+                return 1
 
             res_coordinates_in_box=self.calcCoordinatesInBox()
             if(res_coordinates_in_box[0]):
-               break 
+               break
             cnt+=1
 
+        # カーソル移動
+        # 指定座標へ到着したか確認して終了
         nowPosition=res_coordinates_in_box[1]
         while(nowPosition!=target_coordinates):
             if(0==target_coordinates[0]):
-                self.moveCursor(0, 1-nowPosition[1]) 
-                self.moveCursor(target_coordinates[0]-nowPosition[0], 0) 
+                self.moveCursor(0, 1-nowPosition[1])
+                self.moveCursor(target_coordinates[0]-nowPosition[0], 0)
             else:
+                #TODO: 最小経路を通るよう修正
+                #self.moveCursor(target_coordinates[0]-nowPosition[0], target_coordinates[1]-nowPosition[1]) 
                 self.moveCursor(target_coordinates[0]-nowPosition[0], target_coordinates[1]-nowPosition[1]) 
             nowPosition=self.calcCoordinatesInBox()[1]
-        return
+        return 0
 
 
     # box一覧を開いた状態で使用
@@ -250,6 +296,21 @@ class BoxOperationMethods(ImageProcPythonCommand):
     # boxを開いた状態で使用
     # 指定のboxへ移動する
     def setBox(self, goalBoxIndex):
+        # box一覧を開く
+        self.setPositionInBox((6,1))
+        self.press(Button.A,self.PRESS_BUTTON_DURATION,self.PRESS_BUTTON_WAIT)
+        time.sleep(1)
+
+        # box一覧を開いた状態か確認
+        image_dir=r"./Template/SV/SV_BoxOperationMethods_Images/"
+        template_is_switch_box_path=image_dir+r"switch_box_temochi.png"
+        mask_is_switch_box_path=image_dir+r"switch_box_temochi_mask.png"
+        res=self.isContainTemplateWithMask(template_is_switch_box_path, mask_is_switch_box_path, use_gray=False)
+        if(not res[0]):
+            print("box一覧が開かれていません")
+            return 1
+
+
         return
 
 
