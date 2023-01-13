@@ -246,7 +246,6 @@ class BoxOperationMethods(ImageProcPythonCommand):
                 self.moveCursor(target_coordinates[0]-nowPosition[0], 0)
             else:
                 #TODO: 最小経路を通るよう修正
-                #self.moveCursor(target_coordinates[0]-nowPosition[0], target_coordinates[1]-nowPosition[1]) 
                 self.moveCursor(target_coordinates[0]-nowPosition[0], target_coordinates[1]-nowPosition[1]) 
             nowPosition=self.calcCoordinatesInBox()[1]
         return 0
@@ -294,7 +293,7 @@ class BoxOperationMethods(ImageProcPythonCommand):
 
 
     # boxを開いた状態で使用
-    # 指定のboxへ移動する
+    # 指定のbox(1~32)へ移動する
     def setBox(self, goalBoxIndex):
         # box一覧を開く
         self.setPositionInBox((6,1))
@@ -310,7 +309,43 @@ class BoxOperationMethods(ImageProcPythonCommand):
             print("box一覧が開かれていません")
             return 1
 
+        #box番号を座標に変換
+        nx=(goalBoxIndex-1)%8
+        ny=1+(goalBoxIndex-1)/8
+        result_coordinate=self.calcCoordinatesSwitchBox()
+        if(result_coordinate):
+            self.moveCursor(ny-result_coordinate[1][0],nx-result_coordinate[1][1])
+        return
 
+
+    # boxを開いた状態で使用
+    # 現在のボックスからdiff個右のボックスに移動する。
+    # diffがマイナスの場合は左方向にdiff個分移動する。
+    def setBoxNeighboring(self, diff):
+        # box一覧を開く
+        self.setPositionInBox((6,1))
+        self.press(Button.A,self.PRESS_BUTTON_DURATION,self.PRESS_BUTTON_WAIT)
+        time.sleep(1)
+
+        # box一覧を開いた状態か確認
+        image_dir=r"./Template/SV/SV_BoxOperationMethods_Images/"
+        template_is_switch_box_path=image_dir+r"switch_box_temochi.png"
+        mask_is_switch_box_path=image_dir+r"switch_box_temochi_mask.png"
+        res=self.isContainTemplateWithMask(template_is_switch_box_path, mask_is_switch_box_path, use_gray=False)
+        if(not res[0]):
+            print("box一覧が開かれていません")
+            return 1
+
+        # 現在座標をboxに変換
+        result_coordinate=self.calcCoordinatesSwitchBox()
+        now_box_index=(result_coordinate[1][0]-1)*8+result_coordinate[1][1]
+        goal_box_index=(now_box_index+diff)%32
+
+        #box番号を座標に変換
+        nx=goal_box_index%8
+        ny=1+goal_box_index/8
+        if(result_coordinate):
+            self.moveCursor(ny-result_coordinate[1][0],nx-result_coordinate[1][1])
         return
 
 
